@@ -30,8 +30,8 @@ export type MemberIdentity = {
 
 export function memberIdentity(userId: string): MemberIdentity {
   const h = hash(userId || "anonymous");
-  const adj = ADJECTIVES[h % ADJECTIVES.length];
-  const noun = NOUNS[Math.floor(h / ADJECTIVES.length) % NOUNS.length];
+  const adj = ADJECTIVES[h % ADJECTIVES.length] ?? "Vivid";
+  const noun = NOUNS[Math.floor(h / ADJECTIVES.length) % NOUNS.length] ?? "Signal";
   const hue = (h >>> 8) % 360;
   return {
     label: `${adj} ${noun}`,
