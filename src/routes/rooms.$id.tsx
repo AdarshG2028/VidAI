@@ -315,7 +315,7 @@ function ConnectionPill({ status }: { status: string }) {
   };
   const s = map[status] ?? map["connecting"]!;
   return (
-    <Pill tone={s.tone} pulse={s.pulse}>
+    <Pill tone={s.tone} pulse={s.pulse ?? false}>
       {s.label}
     </Pill>
   );
