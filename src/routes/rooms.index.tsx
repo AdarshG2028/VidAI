@@ -18,7 +18,7 @@ import { getUserId } from "@/lib/identity";
 import { memberIdentity, shortId } from "@/lib/member-identity";
 import { forgetRoom, getKnownRooms, rememberRoom } from "@/lib/rooms-store";
 
-export const Route = createFileRoute("/rooms")({
+export const Route = createFileRoute("/rooms/")({
   head: () => ({
     meta: [
       { title: "Your rooms — VedAI" },
