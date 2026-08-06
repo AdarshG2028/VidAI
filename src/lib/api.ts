@@ -21,7 +21,7 @@ async function request<T>(
   const { json, ...rest } = init;
   const headers = new Headers(rest.headers);
   headers.set("X-User-Id", getUserId());
-  let body = rest.body;
+  let body: BodyInit | null = (rest.body ?? null) as BodyInit | null;
   if (json !== undefined) {
     headers.set("Content-Type", "application/json");
     body = JSON.stringify(json);
