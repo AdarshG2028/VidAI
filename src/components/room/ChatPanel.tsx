@@ -114,7 +114,7 @@ export function ChatPanel({
             if (proposal) {
               return (
                 <div key={m.id} className="max-w-2xl">
-                  <MessageMeta label="VedAI planner" ai time={timeOf(m.created_at)} />
+                  <MessageMeta label="VidAI planner" ai time={timeOf(m.created_at)} />
                   <ProposalCard proposal={proposal} userId={userId} compact />
                 </div>
               );
@@ -125,7 +125,7 @@ export function ChatPanel({
                 <div key={m.id} className="animate-rise flex max-w-2xl gap-3">
                   <BrandMark className="mt-6 size-7 rounded-lg" />
                   <div className="min-w-0 flex-1">
-                    <MessageMeta label="VedAI planner" ai time={timeOf(m.created_at)} />
+                    <MessageMeta label="VidAI planner" ai time={timeOf(m.created_at)} />
                     <div className="rounded-2xl rounded-tl-md border border-ai/25 bg-ai/8 px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap">
                       {m.content}
                     </div>

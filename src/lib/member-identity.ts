@@ -37,9 +37,9 @@ export function memberIdentity(userId: string): MemberIdentity {
     label: `${adj} ${noun}`,
     initials: `${adj[0]}${noun[0]}`,
     hue,
-    color: `oklch(0.78 0.14 ${hue})`,
-    soft: `oklch(0.78 0.14 ${hue} / 0.14)`,
-    border: `oklch(0.78 0.14 ${hue} / 0.35)`,
+    color: `oklch(0.52 0.16 ${hue})`,
+    soft: `oklch(0.52 0.16 ${hue} / 0.14)`,
+    border: `oklch(0.52 0.16 ${hue} / 0.35)`,
   };
 }
 

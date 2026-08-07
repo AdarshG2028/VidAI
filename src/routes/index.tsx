@@ -24,13 +24,13 @@ import { BrandMark, Wordmark } from "@/components/BrandMark";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "VedAI — Edit video by describing it" },
+      { title: "VidAI — Edit video by describing it" },
       {
         name: "description",
         content:
-          "VedAI turns a conversation into a finished cut. Describe the edit, review the AI's plan, approve it with your team, and get the render.",
+          "VidAI turns a conversation into a finished cut. Describe the edit, review the AI's plan, approve it with your team, and get the render.",
       },
-      { property: "og:title", content: "VedAI — Edit video by describing it" },
+      { property: "og:title", content: "VidAI — Edit video by describing it" },
       {
         property: "og:description",
         content:
@@ -126,7 +126,7 @@ function Landing() {
                 <span className="text-gradient">describing the edit.</span>
               </h1>
               <p className="mt-7 max-w-xl text-lg leading-relaxed text-muted-foreground">
-                VedAI is a collaborative room where you talk to a planner instead of
+                VidAI is a collaborative room where you talk to a planner instead of
                 dragging clips. It proposes a structured workflow, your team approves it,
                 and the render comes back finished.
               </p>
@@ -156,7 +156,7 @@ function Landing() {
                   />
                   <ChatPreviewRow
                     align="left"
-                    label="VedAI planner"
+                    label="VidAI planner"
                     ai
                     text="Proposed workflow — trim · silence removal · transcribe · subtitles · render. Awaiting approval from 2 members."
                   />

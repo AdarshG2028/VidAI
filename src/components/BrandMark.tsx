@@ -29,7 +29,7 @@ export function BrandMark({ className }: { className?: string }) {
 export function Wordmark({ className }: { className?: string }) {
   return (
     <span className={cn("font-display text-lg tracking-tight", className)}>
-      Ved<span className="text-gradient">AI</span>
+      Vid<span className="text-gradient">AI</span>
     </span>
   );
 }
