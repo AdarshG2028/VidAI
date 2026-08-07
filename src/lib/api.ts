@@ -30,7 +30,7 @@ async function request<T>(
   try {
     res = await fetch(`${API_BASE}${path}`, { ...rest, headers, body });
   } catch {
-    throw new ApiError(0, `Can't reach the VedAI backend at ${API_BASE}`);
+    throw new ApiError(0, `Can't reach the VidAI backend at ${API_BASE}`);
   }
   if (!res.ok) {
     let detail = `${res.status} ${res.statusText}`;

@@ -21,16 +21,16 @@ import { useRoom } from "@/hooks/useRoom";
 export const Route = createFileRoute("/rooms/$id")({
   head: () => ({
     meta: [
-      { title: "Room workspace — VedAI" },
+      { title: "Room workspace — VidAI" },
       {
         name: "description",
         content:
-          "Chat with the VedAI planner, review proposed edit workflows, approve them with your room, and watch renders finish live.",
+          "Chat with the VidAI planner, review proposed edit workflows, approve them with your room, and watch renders finish live.",
       },
-      { property: "og:title", content: "Room workspace — VedAI" },
+      { property: "og:title", content: "Room workspace — VidAI" },
       {
         property: "og:description",
-        content: "Collaborative, chat-driven video editing in a shared VedAI room.",
+        content: "Collaborative, chat-driven video editing in a shared VidAI room.",
       },
     ],
   }),

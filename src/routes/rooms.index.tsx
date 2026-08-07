@@ -21,13 +21,13 @@ import { forgetRoom, getKnownRooms, rememberRoom } from "@/lib/rooms-store";
 export const Route = createFileRoute("/rooms/")({
   head: () => ({
     meta: [
-      { title: "Your rooms — VedAI" },
+      { title: "Your rooms — VidAI" },
       {
         name: "description",
         content:
-          "Create a VedAI room or join one by ID to start editing video through conversation with your team.",
+          "Create a VidAI room or join one by ID to start editing video through conversation with your team.",
       },
-      { property: "og:title", content: "Your rooms — VedAI" },
+      { property: "og:title", content: "Your rooms — VidAI" },
       {
         property: "og:description",
         content: "Create or join a collaborative AI video editing room.",
