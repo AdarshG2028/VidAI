@@ -2,7 +2,9 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import {
   ArrowRight,
+  Check,
   Clapperboard,
+  Copy,
   LogIn,
   Plus,
   RefreshCw,
@@ -45,6 +47,7 @@ type RoomCard =
 function Dashboard() {
   const navigate = useNavigate();
   const [userId, setUserId] = useState("");
+  const [copiedId, setCopiedId] = useState(false);
   const [rooms, setRooms] = useState<RoomCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [name, setName] = useState("");
@@ -128,20 +131,38 @@ function Dashboard() {
             >
               <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} />
             </button>
-            <div className="flex items-center gap-2.5 rounded-full border border-border bg-surface/70 py-1.5 pr-4 pl-1.5">
+            {/* There are no accounts (identity is a localStorage UUID), so
+                getting invited means sending someone this exact string --
+                the whole chip copies it rather than only showing a
+                truncated, unselectable preview. */}
+            <button
+              onClick={() => {
+                void navigator.clipboard.writeText(userId);
+                setCopiedId(true);
+                toast.success("Your user ID is copied — send it to whoever is inviting you");
+                setTimeout(() => setCopiedId(false), 1600);
+              }}
+              title="Click to copy your full user ID"
+              className="flex items-center gap-2.5 rounded-full border border-border bg-surface/70 py-1.5 pr-3 pl-1.5 transition-colors duration-200 hover:border-primary/40"
+            >
               <span
                 className="grid size-7 place-items-center rounded-full text-[11px] font-semibold"
                 style={{ background: me.soft, color: me.color, border: `1px solid ${me.border}` }}
               >
                 {me.initials}
               </span>
-              <div className="leading-tight">
+              <div className="text-left leading-tight">
                 <p className="text-xs font-medium">{me.label}</p>
                 <p className="font-mono text-[10px] text-muted-foreground">
-                  {shortId(userId)}
+                  {copiedId ? "Copied!" : `${shortId(userId)} · copy ID`}
                 </p>
               </div>
-            </div>
+              {copiedId ? (
+                <Check className="size-3.5 text-primary" />
+              ) : (
+                <Copy className="size-3.5 text-muted-foreground" />
+              )}
+            </button>
           </div>
         </div>
       </header>

@@ -155,13 +155,18 @@ function RoomPage() {
               })}
             </div>
           ) : null}
-          <span
-            className="grid size-8 place-items-center rounded-full border text-[11px] font-semibold"
+          <button
+            onClick={() => {
+              void navigator.clipboard.writeText(userId);
+              toast.success("Your user ID is copied — send it to whoever is inviting you");
+            }}
+            className="grid size-8 place-items-center rounded-full border text-[11px] font-semibold transition-transform duration-200 hover:scale-110"
             style={{ background: me.soft, color: me.color, borderColor: me.border }}
-            title={`${me.label} · ${userId}`}
+            title={`${me.label} · click to copy your user ID`}
+            aria-label="Copy your user ID"
           >
             {me.initials}
-          </span>
+          </button>
         </div>
       </header>
 
@@ -199,7 +204,7 @@ function RoomPage() {
         <LoadingRoom error={error} onRetry={() => void refresh()} />
       ) : (
         <main className="grid min-h-0 flex-1 gap-4 overflow-hidden p-4 lg:grid-cols-[19rem_minmax(0,1fr)_23rem]">
-          <div className="hidden min-h-0 flex-col gap-4 lg:flex">
+          <div className="hidden h-full min-h-0 flex-col gap-4 lg:flex">
             <MembersPanel
               members={state.members}
               project={state.project}
@@ -210,6 +215,7 @@ function RoomPage() {
               videos={state.videos}
               projectId={id}
               onChanged={() => void refresh()}
+              className="flex-1"
             />
           </div>
 
@@ -244,6 +250,11 @@ function RoomPage() {
               ))}
             </div>
 
+            {/* h-full on each panel, not just min-h-0 here: Panel is a
+                block-level <section>, so without an explicit height it
+                sizes to its content, overflows this box and gets clipped
+                by an ancestor's overflow-hidden -- its own
+                overflow-y-auto body never gets the chance to scroll. */}
             <div className="min-h-0 flex-1">
               {tab === "proposals" ? (
                 <Panel
@@ -253,6 +264,7 @@ function RoomPage() {
                       ? "Every active member must approve; one reject ends it"
                       : "A single approver decides"
                   }
+                  className="h-full"
                   bodyClassName="p-4 space-y-4"
                 >
                   {proposals.length === 0 ? (
@@ -272,9 +284,10 @@ function RoomPage() {
                   active={state.active_jobs}
                   ended={state.ended_jobs}
                   onChanged={() => void refresh()}
+                  className="h-full"
                 />
               ) : (
-                <ExportsPanel exports={state.exports} />
+                <ExportsPanel exports={state.exports} className="h-full" />
               )}
             </div>
           </div>

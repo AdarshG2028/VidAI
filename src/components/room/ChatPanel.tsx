@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowUp, Loader2, MessagesSquare } from "lucide-react";
-import type { ChatMessage, Proposal } from "@/lib/api";
+import type { ChatMessage, PlannerResponse, Proposal } from "@/lib/api";
 import { memberIdentity } from "@/lib/member-identity";
 import { BrandMark } from "@/components/BrandMark";
 import { EmptyState } from "./primitives";
@@ -13,11 +13,51 @@ const PROMPTS = [
   "Find the filler words and tell me where they are",
 ];
 
-function proposalIdFor(m: ChatMessage): string | null {
-  if (m.proposal_id) return m.proposal_id;
-  const meta = m.metadata as Record<string, unknown> | null | undefined;
-  const id = meta?.["proposal_id"];
-  return typeof id === "string" ? id : null;
+// The backend stores an assistant message's content as a JSON string --
+// literally `{"type":"message","text":"..."}` or `{"type":"proposal",...}`
+// -- not plain text. Every assistant Message.content is JSON; this only
+// returns null for a genuinely malformed row, which is then shown as-is
+// rather than crashing the chat.
+function parsePlannerContent(content: string): PlannerResponse | null {
+  try {
+    const parsed: unknown = JSON.parse(content);
+    if (
+      parsed &&
+      typeof parsed === "object" &&
+      ((parsed as { type?: unknown }).type === "message" ||
+        (parsed as { type?: unknown }).type === "proposal")
+    ) {
+      return parsed as PlannerResponse;
+    }
+  } catch {
+    /* not JSON -- fall through to null */
+  }
+  return null;
+}
+
+// A proposal-type message carries the same summary/workflow the Proposal
+// row was created with (same request, same transaction) but the backend's
+// MessageResponse has no proposal_id field linking the two -- match on the
+// (near-)identical summary text plus the closest created_at instead.
+function matchingProposal(
+  parsed: PlannerResponse,
+  createdAt: string,
+  proposals: Proposal[],
+): Proposal | undefined {
+  if (parsed.type !== "proposal") return undefined;
+  const msgTime = new Date(createdAt).getTime();
+  let best: Proposal | undefined;
+  let bestDelta = Infinity;
+  for (const p of proposals) {
+    if (p.summary !== parsed.summary) continue;
+    const pTime = p.created_at ? new Date(p.created_at).getTime() : NaN;
+    const delta = Number.isNaN(pTime) ? Infinity : Math.abs(pTime - msgTime);
+    if (delta < bestDelta) {
+      bestDelta = delta;
+      best = p;
+    }
+  }
+  return best;
 }
 
 function timeOf(iso?: string) {
@@ -44,12 +84,6 @@ export function ChatPanel({
   const [draft, setDraft] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-
-  const byId = useMemo(() => {
-    const map = new Map<string, Proposal>();
-    for (const p of proposals) if (p.id) map.set(p.id, p);
-    return map;
-  }, [proposals]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({
@@ -108,8 +142,11 @@ export function ChatPanel({
           messages.map((m) => {
             const isAi = m.role !== "user" || !m.sender_id;
             const isMine = !isAi && m.sender_id === userId;
-            const pid = proposalIdFor(m);
-            const proposal = pid ? byId.get(pid) : undefined;
+            const parsed = isAi ? parsePlannerContent(m.content) : null;
+            const proposal =
+              parsed?.type === "proposal"
+                ? matchingProposal(parsed, m.created_at, proposals)
+                : undefined;
 
             if (proposal) {
               return (
@@ -121,13 +158,24 @@ export function ChatPanel({
             }
 
             if (isAi) {
+              // parsed.type === "message" -> its text. parsed.type ===
+              // "proposal" with no matching Proposal row yet (e.g. the
+              // list hasn't loaded) -> its summary, still readable rather
+              // than raw JSON. parsed === null (malformed row) -> the raw
+              // content as a last resort.
+              const text =
+                parsed?.type === "message"
+                  ? parsed.text
+                  : parsed?.type === "proposal"
+                    ? parsed.summary
+                    : m.content;
               return (
                 <div key={m.id} className="animate-rise flex max-w-2xl gap-3">
                   <BrandMark className="mt-6 size-7 rounded-lg" />
                   <div className="min-w-0 flex-1">
                     <MessageMeta label="VidAI planner" ai time={timeOf(m.created_at)} />
                     <div className="rounded-2xl rounded-tl-md border border-ai/25 bg-ai/8 px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap">
-                      {m.content}
+                      {text}
                     </div>
                   </div>
                 </div>

@@ -81,10 +81,11 @@ export type ChatMessage = {
   id: string;
   role: string;
   sender_id: string | null;
+  // For an assistant message this is a JSON string -- `{"type":"message",
+  // "text":...}` or `{"type":"proposal",...}` -- not plain text. See
+  // ChatPanel.tsx's parsePlannerContent, the one place this is parsed.
   content: string;
   created_at: string;
-  proposal_id?: string | null;
-  metadata?: Record<string, unknown> | null;
 };
 
 export type WorkflowStage = {
@@ -131,10 +132,15 @@ export type Job = {
   [k: string]: unknown;
 };
 
+// The backend also sends a `download_url`, deliberately NOT typed here so
+// nothing can reach for it: it is *relative* (`/artifacts?uri=...`) and
+// carries no user_id, so in the browser it resolves against the app's own
+// origin (:8080) instead of the API's (:8000) and 404s as an HTML page --
+// which renders as a silently blank <video>. Always build the real URL
+// with artifactUrl(), which is absolute and carries identity.
 export type Artifact = {
   kind: string;
   uri: string;
-  download_url?: string;
 };
 
 export type ArtifactStage = {
@@ -143,14 +149,15 @@ export type ArtifactStage = {
   artifacts: Artifact[];
 };
 
+// Matches backend/api/schemas/room.py's ExportResponse exactly -- an
+// export has no uri/download_url of its own, only a list of per-kind
+// artifacts (the final stage's assets: typically a "video", sometimes
+// also an "srt" if the workflow burned/produced subtitles).
 export type ExportItem = {
-  id?: string;
-  job_id?: string;
-  uri?: string;
-  download_url?: string;
-  created_at?: string;
-  kind?: string;
-  [k: string]: unknown;
+  job_id: string;
+  workflow: string[];
+  completed_at: string | null;
+  artifacts: Artifact[];
 };
 
 export type Snapshot = {
@@ -255,6 +262,35 @@ export function artifactUrl(uri: string, jobId?: string) {
   if (jobId) params.set("job_id", jobId);
   params.set("user_id", getUserId());
   return `${API_BASE}/artifacts?${params.toString()}`;
+}
+
+/** Playable/downloadable URL for a video's original upload, before any
+ * edit has run on it — a separate route from artifactUrl since a fresh
+ * upload's video_analysis job produces no downloadable asset. */
+export function videoDownloadUrl(projectId: string, videoId: string) {
+  const params = new URLSearchParams({ user_id: getUserId() });
+  return `${API_BASE}/projects/${projectId}/videos/${videoId}/download?${params.toString()}`;
+}
+
+/** Actually saves a file, unlike `<a href=... download>` against a
+ * cross-origin URL: the API and the app run on different origins/ports
+ * (localhost:8080 vs :8000 in dev, and likely different domains in any
+ * real deploy), and browsers silently ignore the `download` attribute on
+ * a cross-origin link -- clicking it just navigates the tab away instead
+ * of saving anything. Fetching the bytes ourselves and downloading from a
+ * same-origin blob: URL is what makes "download" actually mean download. */
+export async function downloadFile(url: string, filename: string) {
+  const res = await fetch(url, { headers: { "X-User-Id": getUserId() } });
+  if (!res.ok) throw new ApiError(res.status, `${res.status} ${res.statusText}`);
+  const blob = await res.blob();
+  const objectUrl = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = objectUrl;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(objectUrl);
 }
 
 export function roomSocketUrl(projectId: string) {

@@ -74,11 +74,8 @@ function applyEvent(state: RoomState, evt: WsEnvelope): RoomState {
     }
     case "export.completed": {
       const raw = (data["export"] ?? data) as ExportItem;
-      next.exports = upsert(
-        state.exports,
-        raw,
-        (e) => (e.id ?? e.uri ?? e.job_id) as string | undefined,
-      );
+      if (!raw?.job_id) return next;
+      next.exports = upsert(state.exports, raw, (e) => e.job_id);
       return next;
     }
     case "video.updated":
