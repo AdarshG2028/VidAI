@@ -1,18 +1,23 @@
-# Setu
+# VedAI
 
-Event-driven backend for orchestrating long-running AI media workflows, and the
-conversational video editor built on top of it.
+An AI agent for teams, not a tool for one person. You open a room, upload
+footage, and describe the edit you want in chat — the agent turns that into a
+concrete plan, the room reviews and approves it together, then it actually
+executes. No timeline. No toolbar. No drag-and-drop. The only path to an edit
+is chat → proposal → approval → job, on purpose — so nothing changes in the
+video that everyone in the room didn't see and agree to first.
 
-Two layers live in this repo, and keeping them ignorant of each other is the
+This repo (**Setu**) is the backend: the event-driven engine underneath the
+agent. Two layers live in it, and keeping them ignorant of each other is the
 point:
 
 - **The engine** — jobs dispatched through a queue with idempotency guarantees,
   exponential-backoff retries, dead-letter handling and crash recovery. It has
   never heard of video; it moves opaque payloads between stages and guarantees
   they arrive.
-- **The editor (VedAI)** — collaborative rooms where you describe an edit in
-  chat, an LLM planner turns it into a validated workflow, the room votes, and
-  the engine executes it. Every edit is just a multi-stage job.
+- **The agent** — collaborative rooms where you describe an edit in chat, an
+  LLM planner turns it into a validated workflow, the room votes, and the
+  engine executes it. Every edit is just a multi-stage job.
 
 Adding a new editing capability is a worker class, a registry entry and one line
 in a map — no orchestration code changes.
@@ -122,7 +127,7 @@ runs as a single process, which keeps broker- and worker-kill testing simple.
 uv run pytest
 ```
 
-706 tests. Those needing Postgres or Kafka skip automatically when the stack is
+726 tests. Those needing Postgres or Kafka skip automatically when the stack is
 down.
 
 > **Stop your dev workers before running the suite.** A live worker consuming the
@@ -182,7 +187,7 @@ backend/
 
 `backend/planner/` and `backend/shared/` are empty placeholders left from an
 early layout — the planner actually lives in `backend/services/planner.py`,
-`llm_planner.py` and `prompt_builder.py`.
+`graph_planner.py` and `prompt_builder.py`.
 
 ## Design notes
 
