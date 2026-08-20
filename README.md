@@ -25,6 +25,28 @@ in a map — no orchestration code changes.
 Frontend lives in a separate repo:
 [vedai-studio](https://github.com/AdarshG2028/vedai-studio).
 
+## Architecture
+
+```mermaid
+flowchart TD
+    subgraph Agent["The agent — collaborative, chat-driven"]
+        U(["Room: chat"]) -->|"describe the edit"| P["LLM planner"]
+        P -->|"proposal"| V["Validator"]
+        V -->|"structurally valid"| Vote{"Room approves?"}
+        Vote -->|"no — clarify or revise"| U
+    end
+
+    subgraph Engine["The engine — never heard of video"]
+        Vote -->|"yes"| TX[("Job + outbox event,<br/>one transaction")]
+        TX --> OB["Outbox publisher"]
+        OB --> MQ[["Redpanda / Kafka"]]
+        MQ --> WK["Stage workers<br/>trim · crop · merge · transcribe · …"]
+        WK --> ST[("Storage<br/>local disk or S3")]
+    end
+
+    ST -->|"live progress, then the render"| U
+```
+
 ## Requirements
 
 - Python 3.13 and [uv](https://docs.astral.sh/uv/)
