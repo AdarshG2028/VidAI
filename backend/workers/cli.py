@@ -27,8 +27,6 @@ from backend.workers.crop_worker import CropWorker
 from backend.workers.dummy_worker import DummyWorker
 from backend.workers.filler_word_worker import FillerWordWorker
 from backend.workers.merge_worker import MergeWorker
-from backend.workers.content_search_worker import ContentSearchWorker
-from backend.workers.match_edit_workers import KeepMatchesWorker, RemoveMatchesWorker
 from backend.workers.remove_segment_worker import RemoveSegmentWorker
 from backend.workers.render_worker import RenderWorker
 from backend.workers.scene_detection_worker import SceneDetectionWorker
@@ -60,9 +58,6 @@ WORKERS = {
     "crop": CropWorker,
     "detect_filler_words": FillerWordWorker,
     "detect_scenes": SceneDetectionWorker,
-    "find_content": ContentSearchWorker,
-    "keep_matches": KeepMatchesWorker,
-    "remove_matches": RemoveMatchesWorker,
     "dummy": DummyWorker,
     "flip": FlipWorker,
     "frame_extraction": FrameExtractionWorker,

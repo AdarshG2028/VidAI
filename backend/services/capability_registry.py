@@ -206,9 +206,7 @@ DEFAULT_CAPABILITY_REGISTRY = CapabilityRegistry(
                 "this for 'cut out the middle part from X to Y' or 'remove the "
                 "part between X and Y' -- that means DISCARDING a middle range "
                 "and keeping both surrounding pieces, which is remove_segment, "
-                "not trim. All of this is for when the user names a TIME; when "
-                "they describe what is ON SCREEN instead ('where the guy in the "
-                "red shirt is'), use find_content followed by keep_matches."
+                "not trim."
             ),
             parameter_schema={"start": float, "end": float},
         ),
@@ -218,15 +216,12 @@ DEFAULT_CAPABILITY_REGISTRY = CapabilityRegistry(
                 "Cut a middle piece OUT of the video and rejoin the two "
                 "surrounding pieces into one clip -- the opposite of trim, "
                 "which keeps a range instead of removing it. Use this for 'cut "
-                "out 0:40 to 1:10', or deleting a mistake/interruption from the "
-                "middle while keeping everything before and after it. Both "
-                "'start' and 'end' (seconds) are required and mark the range to "
-                "DELETE, so only use this when the user has named a TIME. When "
-                "they instead describe what is ON SCREEN -- 'remove the part "
-                "where the guy in the red shirt is visible' -- use find_content "
-                "followed by remove_matches, which finds the times for you. If "
-                "what's actually wanted is dropping only the intro or only the "
-                "tail (nothing survives on one side), use trim instead -- it's "
+                "out 0:40 to 1:10', 'remove the part where X happens', or "
+                "deleting a mistake/interruption from the middle while keeping "
+                "everything before and after it. Both 'start' and 'end' "
+                "(seconds) are required and mark the range to DELETE. If what's "
+                "actually wanted is dropping only the intro or only the tail "
+                "(nothing survives on one side), use trim instead -- it's "
                 "cheaper and simpler for that case."
             ),
             parameter_schema={"start": float, "end": float},
@@ -312,59 +307,6 @@ DEFAULT_CAPABILITY_REGISTRY = CapabilityRegistry(
             parameter_schema={},
             requires_asset_kinds=("video", "transcript"),
             produces_asset_kinds=("video", "filler_words"),
-        ),
-        # The ordering constraint below lives in prose because
-        # prompt_builder renders only name/description/parameter_schema --
-        # requires_asset_kinds is never shown to the planner. Same reason
-        # burn_subtitles and detect_filler_words spell out their own
-        # dependency on 'transcribe'. The validator's asset-kind check is
-        # the backstop that feeds the regenerate loop when it is ignored.
-        "find_content": StageCapability(
-            name="find_content",
-            description=(
-                "Look at the picture and find every stretch of the video where "
-                "something described in plain words is visible -- 'the man in "
-                "the red shirt', 'a dog', 'the whiteboard'. Does not change the "
-                "video; produces a list of time ranges. This is about what is "
-                "SEEN, not what is said -- for spoken words use 'transcribe'. "
-                "'query' is required: a short description of what to look for, "
-                "in the user's own words. It must come BEFORE 'remove_matches' "
-                "or 'keep_matches', which act on the ranges it finds. Looking "
-                "at the video costs money per frame, so use it once per "
-                "request rather than speculatively."
-            ),
-            parameter_schema={"query": str},
-            produces_asset_kinds=("video", "content_matches"),
-        ),
-        "remove_matches": StageCapability(
-            name="remove_matches",
-            description=(
-                "Cut OUT every stretch found by 'find_content' and rejoin what "
-                "is left into one clip -- 'remove the part where the guy in the "
-                "red shirt is visible'. Requires a 'find_content' stage earlier "
-                "in the workflow to supply the ranges; it takes no parameters "
-                "of its own, since the description of what to remove goes on "
-                "find_content's 'query'. Use 'keep_matches' for the opposite, "
-                "and 'remove_segment' when the user already gave explicit "
-                "timestamps instead of describing what to look for."
-            ),
-            parameter_schema={},
-            requires_asset_kinds=("video", "content_matches"),
-        ),
-        "keep_matches": StageCapability(
-            name="keep_matches",
-            description=(
-                "Keep ONLY the stretches found by 'find_content', joined into "
-                "one clip, discarding everything else -- 'keep just the part "
-                "where he's visible', 'make a supercut of every shot with the "
-                "dog'. Requires a 'find_content' stage earlier in the workflow "
-                "to supply the ranges; it takes no parameters of its own. The "
-                "exact opposite of 'remove_matches'; use 'trim' when the user "
-                "already gave explicit timestamps instead of describing what "
-                "to look for."
-            ),
-            parameter_schema={},
-            requires_asset_kinds=("video", "content_matches"),
         ),
     }
 )

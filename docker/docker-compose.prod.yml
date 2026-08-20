@@ -225,22 +225,6 @@ services:
     <<: *worker
     command: ["worker", "detect_filler_words"]
 
-  # Semantic content search. find_content is the only worker that calls a
-  # vision API, so it is the one to drop first on a box that cannot run
-  # everything -- its topic simply goes unconsumed, and a job proposing it
-  # waits rather than failing.
-  worker-find-content:
-    <<: *worker
-    command: ["worker", "find_content"]
-
-  worker-remove-matches:
-    <<: *worker
-    command: ["worker", "remove_matches"]
-
-  worker-keep-matches:
-    <<: *worker
-    command: ["worker", "keep_matches"]
-
 volumes:
   postgres_data:
   redpanda_data:

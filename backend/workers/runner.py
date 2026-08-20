@@ -114,11 +114,10 @@ class WorkerRunner:
                 auto_offset_reset="earliest",
                 # The consume loop awaits the entire stage between polls, so
                 # this is really "how long may one stage take". aiokafka
-                # defaults it to 300s, which a paced find_content search or
-                # a long render exceeds routinely -- and the consequence is
-                # not an error but silent duplication: evicted consumer,
-                # uncommitted offset, message redelivered, the same paid
-                # work done again.
+                # defaults it to 300s, which a slow render or merge can
+                # exceed -- and the consequence is not an error but silent
+                # duplication: evicted consumer, uncommitted offset,
+                # message redelivered, the same work done again.
                 max_poll_interval_ms=int(self._max_poll_interval_seconds * 1000),
             )
             await self._consumer.start()

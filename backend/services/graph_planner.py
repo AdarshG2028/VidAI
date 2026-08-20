@@ -73,14 +73,18 @@ class Analyzer(Protocol):
     let the room approve it, read results next turn) needs no graph at all
     and is what the product does today.
 
-    **That alternative is what shipped.** Semantic search landed as three
-    ordinary capabilities -- find_content -> remove_matches/keep_matches --
-    composed by the existing validator, with results reaching the planner
-    next turn through the rendered analysis summary. So this seam stayed
-    inert rather than being the thing that carried the feature. It is kept
-    because the graph shape around it costs nothing while unused, but
-    anything reaching for it should first check whether composition covers
-    the case, as it did here.
+    **That alternative was tried and shipped, then dropped.** A
+    find_content/remove_matches/keep_matches capability trio was built and
+    verified live against Groq's vision API -- detection quality was
+    genuinely good. It was removed anyway: rate limits are accounted
+    separately from billing and far more restrictive than the billed cost
+    suggests (measured on the free tier at ~2,900 tokens/image against an
+    8,000 TPM and a 200,000 TPD budget, both metered per Groq
+    *organization*, not per key), leaving roughly 2-3 short searches a day.
+    Composition covered the feature correctly; it was the provider's
+    economics that killed it, not this seam. Kept inert because the graph
+    shape costs nothing while unused, and a cheaper or self-hosted vision
+    path would revive the same design.
     """
 
     async def analyze(self, context: PlannerContext, query: str) -> dict: ...

@@ -225,14 +225,10 @@ async def test_a_slow_stage_does_not_get_the_consumer_evicted(monkeypatch) -> No
 
     Exceeding it does not raise. The consumer is evicted, its offset never
     commits, the partition is reassigned and the message is redelivered --
-    so the same work runs again. For find_content that means re-billing
-    every frame of a paid vision API, in a loop, while the logs show
-    nothing worse than a rebalance.
-
-    find_content is paced by the provider's tokens-per-minute budget and
-    takes minutes by design; long renders and merges can too. So the
+    so the same work runs again, while the logs show nothing worse than a
+    rebalance. A long render or merge can genuinely take minutes, so the
     interval is configured explicitly rather than defaulted, and this test
-    is here because the failure is invisible until it costs money.
+    is here because the failure is otherwise invisible until it repeats.
     """
     captured: dict = {}
 
@@ -270,8 +266,7 @@ async def _noop():
 
 
 def test_the_default_poll_interval_exceeds_a_realistic_slow_stage() -> None:
-    """A guard on the value, not just the wiring. A find_content search on
-    the free tier is paced to under three frames a minute, so a 150-frame
-    search runs for the better part of an hour -- anything near aiokafka's
-    own 300s default silently reintroduces the duplication."""
+    """A guard on the value, not just the wiring. Anything near aiokafka's
+    own 300s default silently reintroduces the duplication for any stage
+    slow enough to matter."""
     assert get_settings().worker_max_poll_interval_seconds >= 1800.0

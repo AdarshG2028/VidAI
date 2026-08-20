@@ -262,28 +262,6 @@ def summarize_analysis(analysis: VideoAnalysis) -> str:
         suffix = f" (first {_MAX_LISTED_ITEMS} of {len(times)})" if len(times) > _MAX_LISTED_ITEMS else ""
         return f"filler words: {len(instances)} found{f' at {listed}{suffix}' if times else ''}"
 
-    if analysis.kind == AssetKind.CONTENT_MATCHES:
-        # Carries the query verbatim, which is the whole reason this feature
-        # needs no planner-side analyze loop: when a search finds nothing,
-        # the room reads *what was searched for* on the next turn and can
-        # rephrase it, instead of the planner silently retrying on its own.
-        query = data.get("query") if isinstance(data, dict) else None
-        matches = data.get("matches", []) if isinstance(data, dict) else []
-        quoted = f' for "{query}"' if isinstance(query, str) and query else ""
-        if not matches:
-            return (
-                f"content search{quoted}: ran, found nothing on screen "
-                "-- a different description may work better"
-            )
-        ranges = [
-            f"{_timestamp(m['start'])}-{_timestamp(m['end'])}"
-            for m in matches
-            if isinstance(m, dict) and m.get("start") is not None and m.get("end") is not None
-        ]
-        listed = ", ".join(ranges[:_MAX_LISTED_ITEMS])
-        suffix = f" (first {_MAX_LISTED_ITEMS} of {len(ranges)})" if len(ranges) > _MAX_LISTED_ITEMS else ""
-        return f"content search{quoted}: {len(ranges)} ranges at {listed}{suffix}"
-
     if analysis.kind == AssetKind.TRANSCRIPT:
         text = data.get("text", "") if isinstance(data, dict) else ""
         if not isinstance(text, str) or not text.strip():
