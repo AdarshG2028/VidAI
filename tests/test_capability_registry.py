@@ -5,6 +5,8 @@ from backend.services.capability_registry import (
     CapabilityRegistry,
     StageCapability,
 )
+from backend.services.proposal import Proposal, ProposalStage
+from backend.services.proposal_validator import validate_proposal
 
 
 def test_register_then_get_returns_it() -> None:
@@ -105,3 +107,59 @@ def test_asset_kind_defaults_are_immutable_and_unshared() -> None:
     assert isinstance(first.requires_asset_kinds, tuple)
     with pytest.raises(AttributeError):
         first.requires_asset_kinds.append("srt")  # type: ignore[attr-defined]
+
+
+# --- content search: the real registry, not a fake one ---------------------
+#
+# These deliberately use DEFAULT_CAPABILITY_REGISTRY where
+# test_proposal_validator.py uses a fake. The question there is whether the
+# chaining *rule* works; the question here is whether the three capabilities
+# as actually registered declare kinds that satisfy it -- a typo in
+# produces_asset_kinds passes every test in that file and still dead-letters
+# every real job.
+
+
+def test_find_content_chains_into_both_consumers() -> None:
+    for consumer in ("remove_matches", "keep_matches"):
+        proposal = Proposal(
+            summary="...",
+            workflow=[
+                ProposalStage(stage="find_content", params={"query": "the red shirt"}),
+                ProposalStage(stage=consumer, params={}),
+            ],
+        )
+
+        result = validate_proposal(proposal, DEFAULT_CAPABILITY_REGISTRY)
+
+        assert result.valid is True, f"find_content -> {consumer}: {result.errors}"
+
+
+def test_a_consumer_without_find_content_is_rejected_before_the_vote() -> None:
+    """The planner cannot see requires_asset_kinds -- prompt_builder renders
+    only name/description/parameters -- so it can and will propose a bare
+    remove_matches. This is what catches that while the proposal is still a
+    proposal, rather than after the room has approved it."""
+    for consumer in ("remove_matches", "keep_matches"):
+        proposal = Proposal(summary="...", workflow=[ProposalStage(stage=consumer, params={})])
+
+        result = validate_proposal(proposal, DEFAULT_CAPABILITY_REGISTRY)
+
+        assert result.valid is False
+        assert any(
+            consumer in error and "content_matches" in error for error in result.errors
+        ), f"the error should name the missing kind, got {result.errors}"
+
+
+def test_find_content_may_run_as_the_first_stage() -> None:
+    """[find_content, remove_matches] is the common case, so find_content
+    must not inherit merge's first-stage restriction in either direction."""
+    assert DEFAULT_CAPABILITY_REGISTRY.get("find_content").must_be_first_stage is False
+
+
+def test_the_consumers_take_no_parameters_of_their_own() -> None:
+    """The polarity lives in the capability name, never in a parameter. A
+    'mode' param would be silently omittable -- the validator only
+    type-checks params that were actually supplied -- and an inverted cut
+    produces a plausible video containing exactly the wrong footage."""
+    for consumer in ("remove_matches", "keep_matches"):
+        assert DEFAULT_CAPABILITY_REGISTRY.get(consumer).parameter_schema == {}

@@ -88,6 +88,7 @@ class WorkerRunner:
         group_id: str,
         retry_base_delay_seconds: float = 2.0,
         retry_max_delay_seconds: float = 30.0,
+        max_poll_interval_seconds: float = 3600.0,
     ) -> None:
         self._worker = worker
         self._sessionmaker = sessionmaker
@@ -96,6 +97,7 @@ class WorkerRunner:
         self._bootstrap_servers = bootstrap_servers
         self._retry_base_delay_seconds = retry_base_delay_seconds
         self._retry_max_delay_seconds = retry_max_delay_seconds
+        self._max_poll_interval_seconds = max_poll_interval_seconds
         self._consumer: AIOKafkaConsumer | None = None
         self._dlq_producer: AIOKafkaProducer | None = None
 
@@ -110,6 +112,14 @@ class WorkerRunner:
                 group_id=self._group_id,
                 enable_auto_commit=False,
                 auto_offset_reset="earliest",
+                # The consume loop awaits the entire stage between polls, so
+                # this is really "how long may one stage take". aiokafka
+                # defaults it to 300s, which a paced find_content search or
+                # a long render exceeds routinely -- and the consequence is
+                # not an error but silent duplication: evicted consumer,
+                # uncommitted offset, message redelivered, the same paid
+                # work done again.
+                max_poll_interval_ms=int(self._max_poll_interval_seconds * 1000),
             )
             await self._consumer.start()
             self._dlq_producer = AIOKafkaProducer(bootstrap_servers=self._bootstrap_servers)

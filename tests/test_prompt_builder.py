@@ -227,3 +227,61 @@ def test_a_video_without_analysis_still_renders() -> None:
 
     assert "- video_1: unanalysed" in system
     assert "(" not in system.split("- video_1: unanalysed")[1].split("\n")[0]
+
+
+def test_prior_analysis_reaches_the_prompt_under_its_handle() -> None:
+    """Before this, analysis assets travelled only within one compiled job,
+    so a room could run detect_scenes, approve it, and on the next turn the
+    planner had no idea it had ever happened -- let alone what it found."""
+    system = _system_with_videos(
+        [
+            VideoContext(
+                handle="video_1",
+                video_id="x",
+                display_name="my clip",
+                analysis=("scenes: 3 cuts at 0:00, 0:12, 0:31", "transcript: 412 words"),
+            )
+        ]
+    )
+
+    handle_line, *rest = system.split("- video_1: my clip")[1].split("\n")
+    following = "\n".join(rest[:2])
+    assert "scenes: 3 cuts at 0:00, 0:12, 0:31" in following
+    assert "transcript: 412 words" in following
+
+
+def test_a_video_with_no_prior_analysis_renders_no_analysis_lines() -> None:
+    system = _system_with_videos(
+        [VideoContext(handle="video_1", video_id="x", display_name="fresh")]
+    )
+
+    assert "already analysed" not in system
+
+
+def test_find_contents_query_parameter_reaches_the_planner() -> None:
+    """find_content is useless without its query, and the validator has no
+    required-params concept to fall back on -- if the prompt doesn't name
+    the parameter, the planner omits it and the worker rejects the job."""
+    system = _system_for(DEFAULT_CAPABILITY_REGISTRY)
+
+    assert "query (string)" in system
+
+
+def test_the_content_ordering_constraint_is_carried_in_prose() -> None:
+    """requires_asset_kinds is never rendered -- the planner's only source
+    for 'find_content must come first' is the description text. If someone
+    later trims these descriptions for token cost, the ordering rule
+    silently stops reaching the model and every proposal fails validation
+    instead."""
+    system = _system_for(DEFAULT_CAPABILITY_REGISTRY)
+
+    for consumer in ("remove_matches", "keep_matches"):
+        # Anchored on the capability's own rendered line: `consumer` also
+        # appears inside find_content's and remove_segment's descriptions,
+        # so a substring search would pass on someone else's prose.
+        line = next(
+            line for line in system.splitlines() if line.startswith(f"- {consumer}:")
+        )
+        assert "find_content" in line, (
+            f"{consumer}'s description must point back at find_content"
+        )

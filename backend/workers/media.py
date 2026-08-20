@@ -126,6 +126,9 @@ class AssetKind:
     THUMBNAIL = "thumbnail"
     SCENES = "scenes"
     FILLER_WORDS = "filler_words"
+    # Time ranges where a plain-language description was visible on screen,
+    # produced by find_content and consumed by remove_matches/keep_matches.
+    CONTENT_MATCHES = "content_matches"
 
 
 @dataclass(frozen=True)

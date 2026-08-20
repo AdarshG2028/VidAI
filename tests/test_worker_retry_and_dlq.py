@@ -214,3 +214,64 @@ def test_retry_backoff_starts_at_base_on_the_first_attempt() -> None:
     off-by-one here would either skip the first backoff entirely or double
     every wait in production."""
     assert retry_delay_seconds(attempt=1, base=2.0, maximum=30.0) == 2.0
+
+
+@pytest.mark.asyncio
+async def test_a_slow_stage_does_not_get_the_consumer_evicted(monkeypatch) -> None:
+    """aiokafka assumes a consumer has died if it does not poll within
+    max_poll_interval_ms, which defaults to 300 seconds -- and this
+    harness awaits the ENTIRE stage between polls, so that default is
+    really a five-minute cap on how long any one stage may take.
+
+    Exceeding it does not raise. The consumer is evicted, its offset never
+    commits, the partition is reassigned and the message is redelivered --
+    so the same work runs again. For find_content that means re-billing
+    every frame of a paid vision API, in a loop, while the logs show
+    nothing worse than a rebalance.
+
+    find_content is paced by the provider's tokens-per-minute budget and
+    takes minutes by design; long renders and merges can too. So the
+    interval is configured explicitly rather than defaulted, and this test
+    is here because the failure is invisible until it costs money.
+    """
+    captured: dict = {}
+
+    class _FakeConsumer:
+        def __init__(self, *args, **kwargs):
+            captured.update(kwargs)
+
+        async def start(self):
+            return None
+
+    monkeypatch.setattr("backend.workers.runner.AIOKafkaConsumer", _FakeConsumer)
+    monkeypatch.setattr(
+        "backend.workers.runner.AIOKafkaProducer",
+        type("_P", (), {"__init__": lambda self, *a, **k: None, "start": lambda self: _noop()}),
+    )
+
+    runner = WorkerRunner(
+        DummyWorker(),
+        None,
+        bootstrap_servers="localhost:19092",
+        topic="whatever",
+        group_id="whatever-group",
+        max_poll_interval_seconds=1800.0,
+    )
+    await runner._ensure_started()
+
+    assert captured["max_poll_interval_ms"] == 1_800_000, (
+        "the runner must pass the configured interval through to aiokafka, "
+        f"got {captured.get('max_poll_interval_ms')}"
+    )
+
+
+async def _noop():
+    return None
+
+
+def test_the_default_poll_interval_exceeds_a_realistic_slow_stage() -> None:
+    """A guard on the value, not just the wiring. A find_content search on
+    the free tier is paced to under three frames a minute, so a 150-frame
+    search runs for the better part of an hour -- anything near aiokafka's
+    own 300s default silently reintroduces the duplication."""
+    assert get_settings().worker_max_poll_interval_seconds >= 1800.0

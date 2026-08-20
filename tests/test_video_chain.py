@@ -10,6 +10,7 @@ Also covers the bounded 3-state window this grew into: latest edit
 """
 
 import datetime as dt
+import json
 import uuid
 from pathlib import Path
 
@@ -21,7 +22,13 @@ from backend.services.planner_context import (
     _edit_note,
     with_edit_history,
 )
-from backend.services.video_chain import measure, recent_edits
+from backend.services.video_chain import (
+    VideoAnalysis,
+    analysis_assets,
+    measure,
+    recent_edits,
+    summarize_analysis,
+)
 from backend.storage.local import LocalDiskStorage
 from backend.workers.media import PREVIEW_FLAG
 
@@ -59,9 +66,19 @@ async def _completed_job(
     preview: bool = False,
     completed_at: dt.datetime,
     workflow: list[str] | None = None,
+    stage_zero_video_uris: list[str] | None = None,
 ) -> Job:
     payload: dict = {
-        "stage_params": {"0": {"params": {}, "video_uris": [], "video_ids": stage_zero_video_ids}}
+        "stage_params": {
+            "0": {
+                "params": {},
+                # What the job was compiled to read. recent_edits compares
+                # the produced video against this to tell a real edit from
+                # an analysis-only pass-through.
+                "video_uris": stage_zero_video_uris or [],
+                "video_ids": stage_zero_video_ids,
+            }
+        }
     }
     if preview:
         payload[PREVIEW_FLAG] = True
@@ -167,8 +184,11 @@ async def test_recent_edits_ignores_multi_video_jobs(session) -> None:
 
 
 async def test_recent_edits_ignores_jobs_with_no_chainable_video_output(session) -> None:
-    """A lone transcribe-style job whose final stage produced no video
-    asset (only a transcript) must not be picked up as an edit."""
+    """A final stage that produced no video asset at all must not count.
+
+    Kept for the degenerate case, but note it does NOT describe what real
+    analysis workers emit -- see the two tests below for that.
+    """
     project = await _project(session)
     video = await _video(session, project.id)
     await _completed_job(
@@ -180,6 +200,76 @@ async def test_recent_edits_ignores_jobs_with_no_chainable_video_output(session)
     )
 
     assert await recent_edits(session, project.id, video.id) == []
+
+
+async def test_analysis_only_job_is_not_an_edit(session) -> None:
+    """The realistic detect_scenes payload, which the test above does not
+    produce. SceneDetectionWorker._finish inserts an Asset(kind=VIDEO,
+    uri=<its own input>) when nothing was carried, so an analysis-only job
+    DOES emit a video asset -- a real one, pointing at the unedited source.
+
+    Before this was fixed it was recorded as an edit: it burned one of the
+    two version slots and told the planner "already applied: detect_scenes"
+    about a video nothing had edited.
+    """
+    project = await _project(session)
+    video = await _video(session, project.id, uri="local:///orig.mp4")
+    await _completed_job(
+        session,
+        project.id,
+        stage_zero_video_ids=[str(video.id)],
+        stage_zero_video_uris=["local:///orig.mp4"],
+        final_assets=[
+            _video_asset("local:///orig.mp4"),  # passed through, unchanged
+            {"kind": "scenes", "uri": "local:///scenes.json"},
+        ],
+        completed_at=dt.datetime.now(dt.UTC),
+        workflow=["detect_scenes"],
+    )
+
+    assert await recent_edits(session, project.id, video.id) == []
+
+
+async def test_transcribe_only_job_is_not_an_edit(session) -> None:
+    """Same shape from TranscribeWorker: video passed through untouched
+    alongside the transcript and srt it produced."""
+    project = await _project(session)
+    video = await _video(session, project.id, uri="local:///orig.mp4")
+    await _completed_job(
+        session,
+        project.id,
+        stage_zero_video_ids=[str(video.id)],
+        stage_zero_video_uris=["local:///orig.mp4"],
+        final_assets=[
+            _video_asset("local:///orig.mp4"),
+            {"kind": "transcript", "uri": "local:///t.json"},
+            {"kind": "srt", "uri": "local:///t.srt"},
+        ],
+        completed_at=dt.datetime.now(dt.UTC),
+        workflow=["transcribe"],
+    )
+
+    assert await recent_edits(session, project.id, video.id) == []
+
+
+async def test_a_real_edit_is_still_found_when_input_uris_are_recorded(session) -> None:
+    """The guard must not swallow genuine edits: same payload shape, but
+    the produced video differs from the input."""
+    project = await _project(session)
+    video = await _video(session, project.id, uri="local:///orig.mp4")
+    await _completed_job(
+        session,
+        project.id,
+        stage_zero_video_ids=[str(video.id)],
+        stage_zero_video_uris=["local:///orig.mp4"],
+        final_assets=[_video_asset("local:///trimmed.mp4")],
+        completed_at=dt.datetime.now(dt.UTC),
+        workflow=["trim"],
+    )
+
+    edits = await recent_edits(session, project.id, video.id)
+
+    assert [edit.uri for edit in edits] == ["local:///trimmed.mp4"]
 
 
 async def test_recent_edits_orders_newest_first(session) -> None:
@@ -483,3 +573,171 @@ async def test_measure_extracts_real_metadata_from_sample_video(
         "orientation": "landscape",
         "codec": "h264",
     }
+
+
+# --- analysis_assets / summarize_analysis --------------------------------
+#
+# The channel that lets a planner see what a room already learned about a
+# video. Before this existed, analysis output travelled only within one
+# compiled job and vanished at the turn boundary.
+
+
+async def test_analysis_assets_returns_non_video_outputs(session) -> None:
+    project = await _project(session)
+    video = await _video(session, project.id, uri="local:///orig.mp4")
+    await _completed_job(
+        session,
+        project.id,
+        stage_zero_video_ids=[str(video.id)],
+        stage_zero_video_uris=["local:///orig.mp4"],
+        final_assets=[
+            _video_asset("local:///orig.mp4"),
+            {"kind": "scenes", "uri": "local:///scenes.json"},
+        ],
+        completed_at=dt.datetime.now(dt.UTC),
+        workflow=["detect_scenes"],
+    )
+
+    found = await analysis_assets(session, project.id, video.id)
+
+    assert [(a.kind, a.uri) for a in found] == [("scenes", "local:///scenes.json")]
+
+
+async def test_analysis_assets_keeps_only_the_newest_of_each_kind(session) -> None:
+    """Supersede, not accumulate: re-running detect_scenes at a different
+    threshold replaces the older scene list rather than sitting beside it."""
+    project = await _project(session)
+    video = await _video(session, project.id, uri="local:///orig.mp4")
+    now = dt.datetime.now(dt.UTC)
+    for uri, when in (
+        ("local:///scenes-old.json", now - dt.timedelta(hours=2)),
+        ("local:///scenes-new.json", now),
+    ):
+        await _completed_job(
+            session,
+            project.id,
+            stage_zero_video_ids=[str(video.id)],
+            stage_zero_video_uris=["local:///orig.mp4"],
+            final_assets=[_video_asset("local:///orig.mp4"), {"kind": "scenes", "uri": uri}],
+            completed_at=when,
+            workflow=["detect_scenes"],
+        )
+
+    found = await analysis_assets(session, project.id, video.id)
+
+    assert [a.uri for a in found] == ["local:///scenes-new.json"]
+
+
+async def test_analysis_assets_survives_older_than_the_edit_window(session) -> None:
+    """recent_edits caps at 2 deliberately; analysis must not. A transcript
+    from five edits ago is still the transcript."""
+    project = await _project(session)
+    video = await _video(session, project.id, uri="local:///orig.mp4")
+    now = dt.datetime.now(dt.UTC)
+    await _completed_job(
+        session,
+        project.id,
+        stage_zero_video_ids=[str(video.id)],
+        stage_zero_video_uris=["local:///orig.mp4"],
+        final_assets=[
+            _video_asset("local:///orig.mp4"),
+            {"kind": "transcript", "uri": "local:///t.json"},
+        ],
+        completed_at=now - dt.timedelta(hours=5),
+        workflow=["transcribe"],
+    )
+    for i in range(3):
+        await _completed_job(
+            session,
+            project.id,
+            stage_zero_video_ids=[str(video.id)],
+            stage_zero_video_uris=["local:///orig.mp4"],
+            final_assets=[_video_asset(f"local:///edit{i}.mp4")],
+            completed_at=now - dt.timedelta(hours=i),
+            workflow=["trim"],
+        )
+
+    found = await analysis_assets(session, project.id, video.id)
+
+    assert [a.kind for a in found] == ["transcript"]
+
+
+async def test_analysis_assets_ignores_previews(session) -> None:
+    project = await _project(session)
+    video = await _video(session, project.id, uri="local:///orig.mp4")
+    await _completed_job(
+        session,
+        project.id,
+        stage_zero_video_ids=[str(video.id)],
+        stage_zero_video_uris=["local:///orig.mp4"],
+        final_assets=[
+            _video_asset("local:///orig.mp4"),
+            {"kind": "scenes", "uri": "local:///scenes.json"},
+        ],
+        preview=True,
+        completed_at=dt.datetime.now(dt.UTC),
+        workflow=["detect_scenes"],
+    )
+
+    assert await analysis_assets(session, project.id, video.id) == []
+
+
+def _analysis(kind: str, uri: str) -> VideoAnalysis:
+    return VideoAnalysis(
+        kind=kind, uri=uri, job_id=uuid.uuid4(), produced_at=dt.datetime.now(dt.UTC)
+    )
+
+
+def test_summarize_scenes_lists_timestamps_and_counts(tmp_path, monkeypatch) -> None:
+    storage = LocalDiskStorage(tmp_path)
+    payload = json.dumps({"cuts": [{"time": 0.0}, {"time": 12.4}, {"time": 91.2}]}).encode()
+    uri = storage.put(payload, suggested_name="scenes.json")
+    monkeypatch.setattr("backend.services.video_chain.get_storage", lambda: storage)
+
+    assert summarize_analysis(_analysis("scenes", uri)) == "scenes: 3 cuts at 0:00, 0:12, 1:31"
+
+
+def test_summarize_scenes_caps_long_lists(tmp_path, monkeypatch) -> None:
+    """An hour of footage can carry hundreds of cuts, and this text goes
+    into every later prompt for the room."""
+    storage = LocalDiskStorage(tmp_path)
+    payload = json.dumps({"cuts": [{"time": float(i)} for i in range(40)]}).encode()
+    uri = storage.put(payload, suggested_name="scenes.json")
+    monkeypatch.setattr("backend.services.video_chain.get_storage", lambda: storage)
+
+    summary = summarize_analysis(_analysis("scenes", uri))
+
+    assert "40 cuts" in summary
+    assert "first 10 of 40" in summary
+    assert summary.count(",") < 12
+
+
+def test_summarize_transcript_reports_words_and_a_capped_excerpt(tmp_path, monkeypatch) -> None:
+    storage = LocalDiskStorage(tmp_path)
+    payload = json.dumps({"text": "hello world " * 200}).encode()
+    uri = storage.put(payload, suggested_name="t.json")
+    monkeypatch.setattr("backend.services.video_chain.get_storage", lambda: storage)
+
+    summary = summarize_analysis(_analysis("transcript", uri))
+
+    assert "400 words" in summary
+    assert len(summary) < 600  # never the raw transcript
+
+
+def test_summarize_degrades_when_the_object_is_unreadable(monkeypatch) -> None:
+    """A summary is an enrichment; a missing object must not break the turn
+    that asked for it."""
+    storage = LocalDiskStorage(Path(__file__).parent)  # real dir, missing key
+    monkeypatch.setattr("backend.services.video_chain.get_storage", lambda: storage)
+
+    summary = summarize_analysis(_analysis("scenes", "local://nope.json"))
+
+    assert "could not be read" in summary
+
+
+def test_summarize_reports_zero_cuts_as_a_finding_not_a_failure(tmp_path, monkeypatch) -> None:
+    storage = LocalDiskStorage(tmp_path)
+    uri = storage.put(json.dumps({"cuts": []}).encode(), suggested_name="scenes.json")
+    monkeypatch.setattr("backend.services.video_chain.get_storage", lambda: storage)
+
+    assert "no cuts detected" in summarize_analysis(_analysis("scenes", uri))
