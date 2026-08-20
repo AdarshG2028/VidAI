@@ -1,7 +1,7 @@
 """Planner — decides what to say back in a conversation.
 
 The interface the rest of the app depends on. `StaticPlanner` is Phase 2's
-deterministic placeholder; Phase 4 adds `LLMPlanner` behind the same
+deterministic placeholder; Phase 4 added a real LLM planner behind the same
 interface.
 
 `respond` takes a `PlannerContext` and returns a `PlannerResponse` (both

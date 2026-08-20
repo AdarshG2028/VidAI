@@ -12,7 +12,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.models import Message, Project, UserPreference, Video
 from backend.services.capability_registry import CapabilityRegistry
-from backend.services.video_chain import measure, recent_edits
+from backend.services.video_chain import (
+    analysis_assets,
+    measure,
+    recent_edits,
+    summarize_analysis,
+)
 
 
 @dataclass(frozen=True)
@@ -49,6 +54,17 @@ class VideoContext:
     # edit's output rather than the original upload -- told to the planner
     # so it knows to say so, and so it knows the facts above may be stale.
     edit_note: str | None = None
+
+    # Prompt-ready one-liners for analysis this room has already run on
+    # this video ("scenes: 6 cuts at 0:00, 0:12, ...", "transcript: 412
+    # words, begins ..."). Empty until with_edit_history fills it.
+    #
+    # Analysis assets otherwise travel only *within* one compiled job
+    # (media.forward_assets), so before this the planner could propose
+    # detect_scenes, watch the room approve it, and on the very next turn
+    # have no idea it had ever run -- let alone what it found. Defaulted so
+    # every VideoContext built by hand elsewhere is unaffected.
+    analysis: tuple[str, ...] = ()
 
 
 def build_video_contexts(
@@ -172,9 +188,18 @@ async def with_edit_history(
     """
     augmented: list[VideoContext] = []
     for context in contexts:
-        edits = await recent_edits(session, project_id, uuid.UUID(context.video_id), limit=2)
+        video_uuid = uuid.UUID(context.video_id)
+        # What this room already knows about the video's *content*, as
+        # opposed to its geometry. Attached to the primary handle only:
+        # analysis describes the underlying footage, and repeating it on
+        # `_previous`/`_original` would just spend context restating it.
+        analysis = tuple(
+            summarize_analysis(item)
+            for item in await analysis_assets(session, project_id, video_uuid)
+        )
+        edits = await recent_edits(session, project_id, video_uuid, limit=2)
         if not edits:
-            augmented.append(context)
+            augmented.append(replace(context, analysis=analysis) if analysis else context)
             continue
 
         duration, resolution, orientation, edit_note = await _measured_facts(
@@ -188,6 +213,7 @@ async def with_edit_history(
                 resolution=resolution,
                 orientation=orientation,
                 edit_note=edit_note,
+                analysis=analysis,
             )
         )
 

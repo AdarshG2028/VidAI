@@ -4,7 +4,7 @@ Routes never touch repositories or the planner directly; this is the one
 place that sequences load/create-conversation -> load-preferences ->
 append-user-message -> assemble PlannerContext -> Planner.respond ->
 serialize PlannerResponse -> append-assistant-message -> return. Phase 4
-swaps StaticPlanner for a real LLMPlanner by passing a different Planner in
+swaps StaticPlanner for a real GraphPlanner by passing a different Planner in
 here -- the sequencing doesn't change, but this service now also owns
 PlannerContext assembly (project/videos/registry/preferences/history) and
 PlannerResponse serialization, since the planner interface itself became

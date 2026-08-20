@@ -1,5 +1,5 @@
 """PromptBuilder (Changelog v8) -- PlannerContext -> Prompt, extracted from
-LLMPlanner so prompt engineering stays separate from the LLM call itself.
+the planner so prompt engineering stays separate from the LLM call itself.
 The same `build` (with an optional validation-feedback turn appended) is
 reused for both the first attempt and Phase 4's one semantic retry; future
 prompt types (clarification, revision, summaries) can add their own
@@ -231,6 +231,11 @@ class PromptBuilder:
             if video.edit_note:
                 line += f" [{video.edit_note}]"
             lines.append(line)
+            # Indented under the handle, for the same reason _video_facts
+            # is inline: in a multi-video room an analysis line that
+            # floated free of its handle would be worse than absent.
+            for fact in getattr(video, "analysis", ()):
+                lines.append(f"    already analysed -- {fact}")
 
         lines.append("")
         lines.append("Available stages (only use these in `workflow`):")

@@ -196,7 +196,7 @@ def _no_ambient_groq_key():
     pytest, which would otherwise make real Groq calls and break every
     assertion written against StaticPlanner's fixed output (discovered live,
     2026-07-28: adding a real key to .env for manual testing silently
-    flipped the whole suite over to LLMPlanner). get_settings and
+    flipped the whole suite over to the real LLM planner). get_settings and
     get_default_planner are both @lru_cache, so this only works if it runs
     before either is ever called -- session-scoped autouse, and `client`
     below explicitly depends on it to guarantee the ordering.

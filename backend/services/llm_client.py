@@ -1,8 +1,8 @@
-"""LLMClient (Changelog v8) -- the one seam between LLMPlanner and a
+"""LLMClient (Changelog v8) -- the one seam between the planner and a
 concrete provider SDK. Only `GroqClient` exists for now; other providers
 aren't stubbed out ahead of an actual second integration (per the v6
 "no speculative generality" principle) -- adding one later is a new class
-behind this same interface, not a change to LLMPlanner.
+behind this same interface, not a change to the planner.
 """
 
 import json
@@ -22,7 +22,7 @@ class LLMClientError(Exception):
     """Infrastructure-layer failure: network error, provider timeout, or
     non-parseable structured output. Distinct from a well-formed but
     semantically-invalid proposal, which validate_proposal catches instead
-    -- LLMPlanner's infrastructure retry is built around this exception."""
+    -- the planner's infrastructure retry is built around this exception."""
 
 
 class LLMClient(ABC):

@@ -1,6 +1,6 @@
 """PlannerResponse (Changelog v8) -- the planner's structured output,
 converted into a domain model immediately after the LLM call. Nothing
-downstream of LLMPlanner passes the raw dict further (item 4: avoid raw
+downstream of the planner passes the raw dict further (item 4: avoid raw
 dictionaries throughout the application) -- ConversationService serializes
 this back to the existing `{"type": ...}` wire shape only at the point it
 writes Message.content.
@@ -78,7 +78,7 @@ class PlannerResponse:
     def to_dict(self) -> dict[str, Any]:
         """The wire shape stored in Message.content -- unchanged from what
         StaticPlanner has always produced, so no API consumer needs to
-        change when LLMPlanner replaces it."""
+        change when a real planner replaces it."""
         if self.type == "message":
             return {"type": "message", "text": self.message}
         assert self.proposal is not None
