@@ -105,22 +105,6 @@ and a subtitle file and passes the video through untouched. Each stage forwards
 everything it received and replaces only what it regenerated, so a consuming
 stage never has to sit adjacent to its producer.
 
-## Services
-
-| Service | Address |
-| --- | --- |
-| API | http://localhost:8000 (docs at `/docs`, metrics at `/metrics`) |
-| Postgres | `localhost:5432` (`setu` / `setu` / `setu`) |
-| Kafka API | `localhost:19092` from the host, `redpanda:9092` inside compose |
-| Redpanda Console | http://localhost:8081 |
-| Adminer (Postgres UI) | http://localhost:8082 (server `postgres`, user/pass/db `setu`) |
-| Prometheus | http://localhost:9090 |
-| Grafana | http://localhost:3000 ("Setu — Pipeline Overview", anonymous admin) |
-| Jaeger | http://localhost:16686 |
-
-Redpanda is used instead of Kafka + ZooKeeper: it speaks the Kafka protocol but
-runs as a single process, which keeps broker- and worker-kill testing simple.
-
 ## Tests
 
 ```bash
@@ -129,25 +113,6 @@ uv run pytest
 
 726 tests. Those needing Postgres or Kafka skip automatically when the stack is
 down.
-
-> **Stop your dev workers before running the suite.** A live worker consuming the
-> same broker will pick up jobs the tests submit, fail them on files that only
-> exist inside the test, and overwrite the status the test asserted — producing
-> intermittent failures that pass on retry.
-
-## Migrations
-
-The database URL comes from `backend.core.config`, not `alembic.ini`, so
-`DATABASE_URL` is the single source of truth.
-
-```bash
-uv run alembic revision --autogenerate -m "description"   # needs Postgres up
-uv run alembic upgrade head
-uv run alembic check                                      # fail on model drift
-```
-
-New models must be re-exported from `backend/models/__init__.py`, or
-autogenerate will not see them.
 
 ## Running it in Docker
 
@@ -185,17 +150,7 @@ backend/
 └── observability/  logging, tracing, metrics
 ```
 
-`backend/planner/` and `backend/shared/` are empty placeholders left from an
-early layout — the planner actually lives in `backend/services/planner.py`,
-`graph_planner.py` and `prompt_builder.py`.
-
 ## Design notes
-
-Longer reasoning, including why things are the way they are, lives in
-[`setu-video-editor-architecture-plan.md`](setu-video-editor-architecture-plan.md)
-— roughly 950 lines of phase-by-phase decisions and their changelogs.
-
-A few worth knowing up front:
 
 - **The outbox pattern.** A job row and its event are written in one transaction;
   a publisher drains the outbox to Kafka. There's no window where a job exists
