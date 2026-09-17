@@ -204,18 +204,23 @@ function RoomPage() {
         <LoadingRoom error={error} onRetry={() => void refresh()} />
       ) : (
         <main className="grid min-h-0 flex-1 gap-4 overflow-hidden p-4 lg:grid-cols-[19rem_minmax(0,1fr)_23rem]">
-          <div className="hidden h-full min-h-0 flex-col gap-4 lg:flex">
+          {/* The column itself scrolls, and each panel keeps its natural
+              height (shrink-0). Splitting a fixed height between the two
+              meant an open video preview had nowhere to go -- it got
+              squeezed into whatever the members list left over. */}
+          <div className="hidden h-full min-h-0 flex-col gap-4 overflow-y-auto pr-1 lg:flex">
             <MembersPanel
               members={state.members}
               project={state.project}
               userId={userId}
               onChanged={() => void refresh()}
+              className="shrink-0"
             />
             <VideosPanel
               videos={state.videos}
               projectId={id}
               onChanged={() => void refresh()}
-              className="flex-1"
+              className="shrink-0"
             />
           </div>
 

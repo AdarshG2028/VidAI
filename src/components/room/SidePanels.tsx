@@ -1,7 +1,6 @@
 import { useRef, useState } from "react";
 import {
   Ban,
-  Check,
   Copy,
   Download,
   FileVideo,
@@ -33,11 +32,13 @@ export function MembersPanel({
   project,
   userId,
   onChanged,
+  className,
 }: {
   members: Member[];
   project: Project;
   userId: string;
   onChanged: () => void;
+  className?: string;
 }) {
   const [invite, setInvite] = useState("");
   const [busy, setBusy] = useState(false);
@@ -63,10 +64,9 @@ export function MembersPanel({
     <Panel
       title="Members"
       subtitle={`${members.length} in this room · ${project.approval_policy === "team" ? "everyone approves" : "one approver decides"}`}
+      className={cn(className)}
       bodyClassName="p-4 space-y-2"
     >
-      <IdentityCard userId={userId} />
-
       {members.length === 0 ? (
         <EmptyState
           icon={<Users className="size-6" />}
@@ -146,57 +146,6 @@ export function MembersPanel({
   );
 }
 
-/** Your own user ID, front and centre and one click to copy.
- *
- * There is no account system (identity is a localStorage UUID, see
- * lib/identity.ts), so being invited means telling someone this string --
- * it was previously only readable as a hover tooltip on the avatar, which
- * you cannot select or copy. */
-function IdentityCard({ userId }: { userId: string }) {
-  const [copied, setCopied] = useState(false);
-  const me = memberIdentity(userId);
-
-  function copy() {
-    void navigator.clipboard.writeText(userId);
-    setCopied(true);
-    toast.success("Your user ID is copied — send it to whoever is inviting you");
-    setTimeout(() => setCopied(false), 1600);
-  }
-
-  return (
-    <div className="rounded-xl border border-primary/25 bg-primary/[0.06] p-3">
-      <div className="flex items-center gap-2">
-        <span
-          className="grid size-7 shrink-0 place-items-center rounded-lg border text-[10px] font-semibold"
-          style={{ background: me.soft, color: me.color, borderColor: me.border }}
-        >
-          {me.initials}
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="text-xs leading-tight font-medium">Your user ID</p>
-          <p className="text-[10px] leading-tight text-muted-foreground">
-            Share this to get invited
-          </p>
-        </div>
-        <button
-          onClick={copy}
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-2.5 py-1.5 text-[11px] text-primary transition-colors duration-200 hover:bg-primary/20"
-        >
-          {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
-          {copied ? "Copied" : "Copy"}
-        </button>
-      </div>
-      <button
-        onClick={copy}
-        title="Click to copy"
-        className="mt-2 w-full rounded-lg border border-border/70 bg-background/60 px-2.5 py-1.5 text-left font-mono text-[10px] leading-relaxed break-all text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
-      >
-        {userId || "…"}
-      </button>
-    </div>
-  );
-}
-
 export function VideosPanel({
   videos,
   projectId,
@@ -235,7 +184,7 @@ export function VideosPanel({
     <Panel
       title="Video library"
       subtitle="Source footage available to the planner"
-      className={cn("min-h-0", className)}
+      className={cn(className)}
       bodyClassName="p-4 space-y-2"
       action={
         <button
