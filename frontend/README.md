@@ -1,7 +1,8 @@
 # VedAI Studio
 
-Frontend for [VedAI](https://github.com/AdarshG2028/Setu) — a collaborative video
-editor you drive by conversation rather than by timeline.
+Frontend for VedAI — a collaborative video editor you drive by conversation
+rather than by timeline. The backend it talks to lives alongside it in this
+repo, at [`../backend`](../backend).
 
 You create a room, upload footage, and describe the edit you want in chat. An LLM
 planner turns that into a concrete workflow, the room votes on it, and the backend
@@ -21,8 +22,8 @@ primitives · **bun** as the package manager and runtime.
 
 ## Running it
 
-The backend must be running first — see its
-[README](https://github.com/AdarshG2028/Setu) for that.
+The backend must be running first — see [its README](../backend/README.md) for
+that.
 
 ```bash
 bun install
