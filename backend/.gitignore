@@ -1,0 +1,36 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Tool caches. pytest and ruff each write their own .gitignore inside these
+# containing `*`, so they are already invisible to git today -- listed here
+# anyway, because that only holds for as long as the tool keeps writing that
+# file, and mypy's cache has no such courtesy.
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Virtual environments
+.venv
+
+# Local environment
+.env
+
+# Local-disk storage backend's output (uploaded videos, artifacts)
+data/
+
+# Agent scratch state and worktrees
+.claude/
+ontofrontend.md
+
+# Editor state. Not a style preference -- what lands here is auto-generated
+# per-machine: the current .vscode/ is C/C++ tooling config (irrelevant to a
+# Python project) carrying absolute paths to this specific machine's home
+# directory and MinGW install, which would be wrong on any other checkout.
+.vscode/
+.idea/
+.cph/

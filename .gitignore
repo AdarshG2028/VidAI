@@ -1,36 +1,35 @@
-# Python-generated files
-__pycache__/
-*.py[oc]
-build/
-dist/
-wheels/
-*.egg-info
+# This repo is a monorepo: backend/ and frontend/ each carry their own
+# .gitignore for project-specific rules. This one is a defensive backstop
+# for anything that ends up at the repo root instead.
 
-# Tool caches. pytest and ruff each write their own .gitignore inside these
-# containing `*`, so they are already invisible to git today -- listed here
-# anyway, because that only holds for as long as the tool keeps writing that
-# file, and mypy's cache has no such courtesy.
+# Secrets / local environment
+.env
+.env.*
+!.env.example
+*.local
+
+# Agent scratch state
+.claude/
+
+# Editor / OS state
+.vscode/
+.idea/
+.cph/
+.DS_Store
+
+# Python artifacts, in case any linger outside backend/
+.venv/
+__pycache__/
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
 
-# Virtual environments
-.venv
+# Node artifacts, in case any linger outside frontend/
+node_modules/
+dist/
 
-# Local environment
-.env
+# Local-disk storage backend's leftover output at the old root path
+/data/
 
-# Local-disk storage backend's output (uploaded videos, artifacts)
-data/
-
-# Agent scratch state and worktrees
-.claude/
-ontofrontend.md
-
-# Editor state. Not a style preference -- what lands here is auto-generated
-# per-machine: the current .vscode/ is C/C++ tooling config (irrelevant to a
-# Python project) carrying absolute paths to this specific machine's home
-# directory and MinGW install, which would be wrong on any other checkout.
-.vscode/
-.idea/
-.cph/
+# Pre-restructure scratch notes, left behind at the old root path
+/ontofrontend.md
